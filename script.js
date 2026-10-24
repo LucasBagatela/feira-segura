@@ -13,6 +13,19 @@ const ACOES = {
   detergente:{t:'Lavar com detergente de louça',                why:'Detergente de louça não é produto próprio para alimentos e pode deixar resíduos.'},
   sem_lavar: {t:'Só descascar, sem lavar antes',                why:'Sem lavar antes, a sujeira e os microrganismos da casca passam para as mãos, a faca e a parte comestível.'}
 };
+// Por que cada etapa NÃO vem antes da hora (mostrado quando o jogador clica na ação errada)
+const QUANDO = {
+  agua:      'A passada na água, esfregando de leve, é o ponto de partida: ela solta a terra e a sujeira da superfície antes de qualquer produto.',
+  sanitizar: 'O molho com o produto vem depois da passada na água: ele age melhor com a superfície já sem terra, e antes do enxágue que o retira.',
+  enxague:   'O enxágue só faz sentido depois do molho, pois serve para tirar o produto do alimento.',
+  remover:   'Retirar as partes impróprias fica para o final, depois de todas as etapas de higienização.'
+};
+// Embaralha uma lista (Fisher-Yates): a ordem dos botões muda a cada partida
+function embaralhar(lista){
+  const l = lista.slice();
+  for(let i=l.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [l[i],l[j]] = [l[j],l[i]]; }
+  return l;
+}
 const SEQUENCIA = ['agua','sanitizar','enxague','remover']; // mesma ordem para todos os alimentos
 
 const ALIMENTOS = {
@@ -90,7 +103,7 @@ function confirmarCompra(){
   if(total() === 0) return msg($('msg1'), 'Compre pelo menos um alimento para avançar.', 'err');
   S.gasto = total();
   S.comprados = Object.keys(S.cesta).filter(k=>S.cesta[k]>0);
-  S.comprados.forEach(id=>{ S.foods[id] = {i:0, erros:0, acertos:0, corrigidos:0, falhouPasso:false, done:false}; });
+  S.comprados.forEach(id=>{ S.foods[id] = {i:0, erros:0, acertos:0, corrigidos:0, falhouPasso:false, done:false, ordem:embaralhar(ALIMENTOS[id].acoes), errados:[]}; });
   S.pontos += 10; // planejou dentro do orçamento (o sistema impede ultrapassar)
   S.sel = S.comprados[0];
   irParaCasa();
@@ -107,8 +120,18 @@ function renderHigiene(){
   $('foodHint').textContent = a.dica;
   $('progress').firstElementChild.style.width = (f.i / a.steps.length * 100) + '%';
   $('progressTxt').textContent = f.done ? 'Higienização concluída' : `Etapa ${f.i+1} de ${a.steps.length}`;
-  $('actions').innerHTML = a.acoes.map(k=>
-    `<button data-act="${k}" ${f.done?'disabled':''} class="${a.steps.indexOf(k) > -1 && a.steps.indexOf(k) < f.i ? 'used':''}">${ACOES[k].t}</button>`).join('');
+  const classe = k=>{
+    const pos = a.steps.indexOf(k);
+    if(pos > -1 && pos < f.i) return 'used';                 // etapa já feita
+    if(f.errados.includes(k)) return 'errou';                // clicou e não era a hora
+    if(f.errados.length >= 3 && k === a.steps[f.i]) return 'dica'; // após 3 erros, destaca a certa
+    return '';
+  };
+  $('actions').innerHTML = f.ordem.map(k=>
+    `<button data-act="${k}" class="${classe(k)}" ${f.done || classe(k)==='used' ? 'disabled' : ''}>${ACOES[k].t}</button>`).join('');
+  // Indicador da sequência: o jogador precisa clicar nas ações uma de cada vez, na ordem correta
+  $('seq').innerHTML = `<p><b>Clique nas ações na sequência correta</b>, uma de cada vez. ${f.done ? 'Sequência completa!' : `Agora: etapa ${f.i+1} de ${a.steps.length}.`}</p><div class="chips">` +
+    a.steps.map((s,i)=>`<span class="chip2 ${i<f.i?'ok':i===f.i&&!f.done?'now':''}">${i<f.i?'✔':i+1}</span>`).join('') + '</div>';
   const faltam = S.comprados.filter(k=>!S.foods[k].done).length;
   $('btnFinish').disabled = faltam > 0;
   $('btnProximo').hidden = S.comprados.length < 2;      // só faz sentido com 2 ou mais alimentos
@@ -122,18 +145,20 @@ function agir(k){
   if(k === esperado){
     f.acertos++;
     if(f.falhouPasso){ S.pontos += 5; f.corrigidos++; f.falhouPasso = false; } else S.pontos += 10;
-    f.i++;
+    f.i++; f.errados = [];
     msg(fb, 'Correto! ' + ACOES[k].why, 'ok');
     const v = $('visual'); v.classList.remove('splash'); void v.offsetWidth;
     if(['agua','folha','enxague','sanitizar'].includes(k)) v.classList.add('splash');
     if(f.i >= a.steps.length){ f.done = true; if(S.comprados.every(k=>k===id||S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900); S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos. Use o botão abaixo para seguir.`, 'ok'); }
   } else {
     f.erros++; f.falhouPasso = true;
-    let m;
-    if(a.hints[k]) m = a.hints[k];
-    else if(a.steps.includes(k)) m = 'Essa etapa faz parte do procedimento, mas ainda não é a hora. ';
-    else m = ACOES[k].why + ' ';
-    msg(fb, `Ainda não. ${m} Próxima etapa correta: "${ACOES[esperado].t}". ${ACOES[esperado].why}`, 'err');
+    if(!f.errados.includes(k)) f.errados.push(k);
+    const nome = ACOES[k].t;
+    let motivo;
+    if(a.steps.includes(k)) motivo = QUANDO[k];                          // etapa certa, mas fora de ordem
+    else motivo = ACOES[k].why;                                           // ação que não deve ser usada
+    const abertura = f.i === 0 ? 'não é por aqui que se começa' : 'ainda não é a hora desta etapa';
+    msg(fb, `✖ “${nome}”: ${abertura}. Clique em outra ação. Por quê? ${motivo}`, 'err');
   }
   renderHigiene();
 }

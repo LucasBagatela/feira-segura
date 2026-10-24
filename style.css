@@ -110,3 +110,14 @@ dialog h3{margin-bottom:.25rem}
 #btnProximo{margin-bottom:.6rem}
 .big.alt{background:var(--citrus)}
 .big.alt:hover:not(:disabled){background:#d4770f}
+
+/* Sequência: indicador de etapas e botões errados */
+.seq{background:#eef6fb;border-left:4px solid var(--water);border-radius:6px;padding:.5rem .8rem;margin-bottom:.75rem}
+.seq p{margin:0 0 .4rem}
+.chips{display:flex;gap:.4rem}
+.chip2{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:#fff;border:2px solid var(--line)}
+.chip2.ok{background:var(--leaf);border-color:var(--leaf);color:#fff}
+.chip2.now{border-color:var(--water);color:var(--water)}
+.actions button.errou{background:#fdecea;border-color:var(--bad);color:var(--bad)}
+.actions button.errou::before{content:"✖ "}
+.actions button.dica{outline:3px dashed var(--citrus);outline-offset:2px}

@@ -29,6 +29,8 @@ Todos os alimentos passam pela mesma sequência, nesta ordem:
 
 Quando um alimento termina, o botão **Próximo alimento** (acima de "Ver resultado") leva ao próximo ainda pendente. O botão **Ver resultado** só é liberado quando todos estiverem prontos.
 
+Os botões de ação aparecem em **ordem aleatória** a cada partida. Ao clicar na ação errada, ela fica vermelha e o jogo explica por que não é a hora dela, pedindo para clicar em outra; depois de 3 erros na mesma etapa, a ação certa é destacada. Um indicador numerado mostra em que etapa da sequência o jogador está.
+
 Ações como usar detergente de louça ou só descascar sem lavar são tratadas como erros, com explicação. Etapas certas na hora errada também recebem feedback.
 
 ## Estrutura do projeto
