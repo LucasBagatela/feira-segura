@@ -69,9 +69,20 @@ function renderMercado(){
   $('cartTotal').textContent = fmt(total());
   $('cartSaldo').textContent = fmt(ORCAMENTO - total());
   $('btnConfirm').disabled = itens.length === 0;
+  atualizarCesta();
+  const qtd = itens.reduce((s,k)=>s+S.cesta[k],0);
+  $('resumo1').textContent = `Cesta: ${qtd} item(ns) · Total ${fmt(total())} · Saldo ${fmt(ORCAMENTO-total())}`;
   cabecalho();
 }
-function msg(el, texto, tipo){ el.textContent = texto; el.className = 'msg ' + (tipo||''); }
+function msg(el, texto, tipo){
+  el.textContent = texto; el.className = 'msg ' + (tipo||'');
+  if(el.id === 'msg1'){ const d = $('dica1'); d.textContent = texto; d.className = 'msg ' + (tipo||''); } // espelha o aviso perto da cena (útil no celular)
+}
+// Rola a tela até um elemento (sem animação se o usuário preferir menos movimento)
+function rolarPara(el){
+  const reduz = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.scrollIntoView({behavior: reduz ? 'auto' : 'smooth', block:'start'});
+}
 
 function adicionar(id){
   const a = ALIMENTOS[id];
@@ -119,7 +130,7 @@ function agir(k){
     msg(fb, 'Correto! ' + ACOES[k].why, 'ok');
     const v = $('visual'); v.classList.remove('splash'); void v.offsetWidth;
     if(['agua','folha','enxague','sanitizar'].includes(k)) v.classList.add('splash');
-    if(f.i >= a.steps.length){ f.done = true; S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos.`, 'ok'); }
+    if(f.i >= a.steps.length){ f.done = true; if(S.comprados.every(k=>k===id||S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900); S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos.`, 'ok'); }
   } else {
     f.erros++; f.falhouPasso = true;
     let m;
@@ -151,14 +162,32 @@ function abrirRefs(){
 }
 
 /* ===== PERSONAGEM E CENAS ===== */
-const HEROI = '<span class="corpo"><svg viewBox="0 0 60 90" aria-hidden="true"><circle cx="30" cy="16" r="12" fill="#f1c9a5"/><path d="M18 14a12 12 0 0 1 24 0z" fill="#4a3322"/><rect x="16" y="30" width="28" height="30" rx="8" fill="#237a4b"/><rect class="pe pe1" x="19" y="58" width="9" height="28" rx="4" fill="#14302b"/><rect class="pe pe2" x="32" y="58" width="9" height="28" rx="4" fill="#14302b"/><path class="bolsa" d="M42 44h14l-2 22H44z" fill="#ee8a1f"/></svg></span>';
-let andando = false;
+const HEROI = '<span class="corpo"><svg viewBox="-8 0 80 90" aria-hidden="true"><circle cx="30" cy="16" r="12" fill="#f1c9a5"/><path d="M18 14a12 12 0 0 1 24 0z" fill="#4a3322"/><rect x="16" y="30" width="28" height="30" rx="8" fill="#237a4b"/><rect class="pe pe1" x="19" y="58" width="9" height="28" rx="4" fill="#14302b"/><rect class="pe pe2" x="32" y="58" width="9" height="28" rx="4" fill="#14302b"/><path d="M42 38L51 47" stroke="#f1c9a5" stroke-width="5" stroke-linecap="round"/><path d="M43 54q9-15 18 0" stroke="#8a5f36" stroke-width="2.5" fill="none"/><g class="itens"></g><path d="M40 54h24l-3 17H43z" fill="#c58b4e" stroke="#8a5f36" stroke-width="1.5"/><path d="M45 58v9M52 58v9M59 58v9" stroke="#8a5f36" stroke-width="1"/><g class="selo"></g></svg></span>';
+let andando = false, ultimoN = 0;
+// Desenha na cesta do personagem uma unidade para cada item comprado, mais um selo com o total
+function atualizarCesta(){
+  const pos = [[45,53],[51,53],[57,53],[63,53],[48,48],[54,48],[60,48],[51,43],[57,43]];
+  const lista = [];
+  Object.keys(ALIMENTOS).forEach(id=>{ for(let i=0;i<S.cesta[id];i++) lista.push(id); });
+  const itens = lista.slice(0,pos.length).map((id,i)=>{
+    const x = pos[i][0], y = pos[i][1], c = ALIMENTOS[id].cor;
+    return id==='pepino' ? `<ellipse cx="${x}" cy="${y}" rx="4.6" ry="2.8" fill="${c}"/>` : `<circle cx="${x}" cy="${y}" r="3.8" fill="${c}"/>`;
+  }).join('');
+  const n = lista.length;
+  document.querySelectorAll('.heroi .itens').forEach(g=>{ g.innerHTML = itens; });
+  document.querySelectorAll('.heroi .selo').forEach(g=>{
+    g.innerHTML = n ? `<circle cx="65" cy="38" r="6" fill="#ee8a1f" stroke="#fff" stroke-width="1.5"/><text x="65" y="41.3" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" ${FONTE}>${n}</text>` : '';
+    if(n > ultimoN){ g.classList.remove('pop'); g.getBoundingClientRect(); g.classList.add('pop'); }
+  });
+  ultimoN = n;
+}
 // Monta uma cena: spots = [{id,x,y,html,fn}] (x,y em %), start = posição inicial do personagem
 function montarPalco(elId, tipo, spots, start, sacola){
   const p = $(elId); p.className = 'palco ' + tipo;
   p.innerHTML = spots.map(s=>`<button class="spot ${s.cls||''}" data-spot="${s.id}" ${s.label?`aria-label="${s.label}"`:''} style="left:${s.x}%;top:${s.y}%">${s.html}</button>`).join('') +
     `<div class="heroi ${sacola?'comsacola':''}" style="left:${start[0]}%;top:${start[1]}%">${HEROI}</div>`;
   p.querySelectorAll('.spot').forEach((b,i)=>b.addEventListener('click', ()=>ir(p, spots[i])));
+  ultimoN = 99; atualizarCesta(); // redesenha a cesta sem animar
 }
 // Faz o personagem andar até o objeto e só então executa a ação
 function ir(p, s){
@@ -231,7 +260,7 @@ function montarCasa(){
   $('washPanel').hidden = true;
   msg($('dica2'),'Toque na pia para começar a lavar os alimentos.','info');
   montarPalco('palco2','casa',[
-    {id:'pia', x:28, y:38, cls:'ilus', label:'Pia: lavar os alimentos', html:svgPia(), fn:()=>{ $('washPanel').hidden=false; msg($('dica2'),'','info'); renderHigiene(); }},
+    {id:'pia', x:28, y:38, cls:'ilus', label:'Pia: lavar os alimentos', html:svgPia(), fn:()=>{ $('washPanel').hidden=false; msg($('dica2'),'','info'); renderHigiene(); rolarPara($('washPanel')); }},
     {id:'mesa', x:76, y:44, cls:'ilus', label:'Mesa: finalizar', html:svgMesa(), fn:finalizar}
   ],[10,90],true);
 }

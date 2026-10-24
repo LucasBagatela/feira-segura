@@ -70,7 +70,7 @@ dialog h3{margin-bottom:.25rem}
 .spot:not(.ilus)>svg{width:56px;height:56px}
 .spot[data-spot=caixa],.spot[data-spot=mesa]{border-color:var(--citrus)}
 .spot[data-spot=pia]{border-color:var(--water);background:#d6ebf8}
-.heroi{position:absolute;width:48px;transform:translate(-50%,-100%);transition:left .7s ease,top .7s ease;z-index:3;pointer-events:none}
+.heroi{position:absolute;width:64px;transform:translate(-50%,-100%);transition:left .7s ease,top .7s ease;z-index:3;pointer-events:none}
 .heroi svg{display:block;width:100%}
 .heroi .bolsa{display:none}.heroi.comsacola .bolsa{display:block}
 .heroi .corpo{display:block;transform-origin:50% 100%}
@@ -97,3 +97,12 @@ dialog h3{margin-bottom:.25rem}
 .spot.ilus>svg{display:block;width:min(150px,28vw);height:auto;filter:drop-shadow(0 3px 2px rgba(0,0,0,.18))}
 .spot.ilus:hover:not(:disabled),.spot.ilus:active{background:transparent;box-shadow:none}
 .spot.ilus:hover>svg{filter:brightness(1.08) drop-shadow(0 0 6px #fff)}
+
+/* Cabeçalho fixo: saldo e pontos sempre visíveis; rolagem não esconde conteúdo sob ele */
+.top{position:sticky;top:0;z-index:20}
+#palco2,#washPanel{scroll-margin-top:110px}
+@media(max-width:760px){.top{padding:.6rem 1rem}.top h1{font-size:1.15rem}}
+
+.heroi .selo{transform-box:fill-box;transform-origin:center}
+.heroi .selo.pop{animation:selo .35s}
+@keyframes selo{40%{transform:scale(1.6)}}
