@@ -20,13 +20,15 @@ O objetivo é ensinar práticas de higienização de frutas e verduras e deixar 
 
 ## Etapas de higienização usadas
 
-| Alimento | Sequência correta |
-|----------|-------------------|
-| Pepino | Remover sujeira visível, lavar em água corrente, esfregar suavemente, molho em produto próprio para alimentos e enxaguar |
-| Laranja | Remover sujeira visível, lavar em água corrente e esfregar suavemente (a casca normalmente é descartada) |
-| Couve | Remover sujeira e partes estragadas, lavar folha por folha, molho em produto próprio para alimentos e enxaguar |
+Todos os alimentos passam pela mesma sequência, nesta ordem:
 
-O molho segue a diluição e o tempo de contato do rótulo do produto. Ações como usar detergente de louça ou só descascar sem lavar são tratadas como erros, com explicação.
+1. Abrir a torneira e dar uma passada na água, esfregando de leve.
+2. Deixar de molho em hipoclorito de sódio próprio para alimentos, seguindo a diluição e o tempo do rótulo.
+3. Enxaguar muito bem em água corrente.
+4. Retirar as partes impróprias para o consumo (só depois de higienizar).
+5. Passar para o próximo alimento (ou finalizar, no último).
+
+Ações como usar detergente de louça ou só descascar sem lavar são tratadas como erros, com explicação. Etapas certas na hora errada também recebem feedback.
 
 ## Estrutura do projeto
 

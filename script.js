@@ -6,32 +6,26 @@ const fmt = v => 'R$ ' + v.toFixed(2).replace('.', ',');
 
 // Ações de higienização. "why" explica o que a ação faz quando é a correta.
 const ACOES = {
-  remover:   {t:'Remover sujeira visível e partes estragadas', why:'Retirar terra e partes danificadas antes de lavar evita espalhar sujeira.'},
-  agua:      {t:'Lavar em água corrente',                       why:'A água corrente leva embora terra e parte dos resíduos superficiais.'},
-  friccao:   {t:'Esfregar suavemente a superfície',             why:'A fricção suave ajuda a soltar sujeira que a água sozinha não leva.'},
-  folha:     {t:'Separar e lavar folha por folha',              why:'Folhas sobrepostas escondem sujeira; lavar uma a uma é mais eficaz.'},
-  sanitizar: {t:'Molho em produto próprio para alimentos (diluição e tempo do rótulo)', why:'Para alimentos consumidos crus, usa-se produto próprio para alimentos, seguindo diluição e tempo do rótulo (ex.: hipoclorito de sódio próprio para alimentos, cerca de 15 min, conforme orientação sanitária).'},
-  enxague:   {t:'Enxaguar em água corrente depois do molho',    why:'O enxágue retira o produto, conforme indicado no rótulo.'},
+  agua:      {t:'Abrir a torneira e dar uma passada na água, esfregando de leve', why:'A água corrente com fricção leve solta a sujeira da superfície antes do molho.'},
+  sanitizar: {t:'Deixar de molho em hipoclorito de sódio próprio para alimentos (diluição e tempo do rótulo)', why:'Todo alimento consumido cru passa pelo produto próprio para alimentos, que ajuda a eliminar microrganismos. Siga a diluição e o tempo de contato do rótulo (em geral, cerca de 15 minutos).'},
+  enxague:   {t:'Enxaguar muito bem em água corrente', why:'O enxágue abundante retira o produto do alimento, conforme indicado no rótulo.'},
+  remover:   {t:'Retirar as partes impróprias para o consumo', why:'Só depois de higienizar, retiram-se as partes que não serão consumidas (estragadas, talos, cascas quando for o caso).'},
+  proximo:   {t:'Passar para o próximo alimento', why:'Cada alimento é higienizado por completo antes de passar ao próximo.'},
   detergente:{t:'Lavar com detergente de louça',                why:'Detergente de louça não é produto próprio para alimentos e pode deixar resíduos.'},
-  sem_lavar: {t:'Só descascar, sem lavar antes',                why:'Sem lavar a casca antes, a sujeira pode passar para as mãos, a faca e a parte comestível.'}
+  sem_lavar: {t:'Só descascar, sem lavar antes',                why:'Sem lavar antes, a sujeira e os microrganismos da casca passam para as mãos, a faca e a parte comestível.'}
 };
+const SEQUENCIA = ['agua','sanitizar','enxague','remover','proximo']; // mesma ordem para todos os alimentos
 
 const ALIMENTOS = {
-  pepino: {nome:'Pepino', preco:4, cor:'#3b9a52',
-    steps:['remover','agua','friccao','sanitizar','enxague'],
-    acoes:['remover','agua','friccao','sanitizar','enxague','detergente'],
+  pepino: {nome:'Pepino', preco:4, cor:'#3b9a52', steps:SEQUENCIA,
+    acoes:['remover','agua','proximo','sanitizar','enxague','detergente'],
     dica:'Costuma ser comido cru, às vezes com casca.', hints:{}},
-  laranja: {nome:'Laranja', preco:3, cor:'#ee8a1f',
-    steps:['remover','agua','friccao'],
-    acoes:['remover','agua','friccao','sanitizar','enxague','sem_lavar'],
-    dica:'A casca normalmente é descartada, mas as mãos e a faca encostam nela.',
-    hints:{sanitizar:'Não é necessário aqui, pois a casca normalmente não é consumida. Se for usar a casca (raspas, chás), siga o procedimento de alimentos crus.',
-           enxague:'Sem molho com produto, não há o que enxaguar nesta sequência.'}},
-  couve: {nome:'Couve', preco:5, cor:'#1f7a3d',
-    steps:['remover','folha','sanitizar','enxague'],
-    acoes:['remover','folha','sanitizar','enxague','detergente'],
-    dica:'Folhas sobrepostas retêm terra; é comida crua ou refogada.',
-    hints:{}}
+  laranja: {nome:'Laranja', preco:3, cor:'#ee8a1f', steps:SEQUENCIA,
+    acoes:['remover','agua','proximo','sanitizar','enxague','sem_lavar'],
+    dica:'A casca normalmente é descartada, mas as mãos e a faca encostam nela.', hints:{}},
+  couve: {nome:'Couve', preco:5, cor:'#1f7a3d', steps:SEQUENCIA,
+    acoes:['remover','agua','proximo','sanitizar','enxague','detergente'],
+    dica:'Folhas sobrepostas retêm terra: ao lavar, abra bem as folhas.', hints:{}}
 };
 
 /* ===== ESTADO ===== */
@@ -115,7 +109,7 @@ function renderHigiene(){
   $('progress').firstElementChild.style.width = (f.i / a.steps.length * 100) + '%';
   $('progressTxt').textContent = f.done ? 'Higienização concluída' : `Etapa ${f.i+1} de ${a.steps.length}`;
   $('actions').innerHTML = a.acoes.map(k=>
-    `<button data-act="${k}" ${f.done?'disabled':''} class="${a.steps.indexOf(k) > -1 && a.steps.indexOf(k) < f.i ? 'used':''}">${ACOES[k].t}</button>`).join('');
+    `<button data-act="${k}" ${f.done?'disabled':''} class="${a.steps.indexOf(k) > -1 && a.steps.indexOf(k) < f.i ? 'used':''}">${k==='proximo' && S.comprados.filter(x=>!S.foods[x].done).length===1 ? 'Finalizar a higienização' : ACOES[k].t}</button>`).join('');
   $('btnFinish').disabled = !S.comprados.every(k=>S.foods[k].done);
   cabecalho();
 }
@@ -130,7 +124,7 @@ function agir(k){
     msg(fb, 'Correto! ' + ACOES[k].why, 'ok');
     const v = $('visual'); v.classList.remove('splash'); void v.offsetWidth;
     if(['agua','folha','enxague','sanitizar'].includes(k)) v.classList.add('splash');
-    if(f.i >= a.steps.length){ f.done = true; if(S.comprados.every(k=>k===id||S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900); S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos.`, 'ok'); }
+    if(f.i >= a.steps.length){ f.done = true; if(S.comprados.every(k=>k===id||S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900); S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos.`, 'ok'); const prox = S.comprados.find(x=>!S.foods[x].done); if(prox) S.sel = prox; }
   } else {
     f.erros++; f.falhouPasso = true;
     let m;
