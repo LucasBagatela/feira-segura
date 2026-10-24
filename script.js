@@ -10,21 +10,20 @@ const ACOES = {
   sanitizar: {t:'Deixar de molho em hipoclorito de sódio próprio para alimentos (diluição e tempo do rótulo)', why:'Todo alimento consumido cru passa pelo produto próprio para alimentos, que ajuda a eliminar microrganismos. Siga a diluição e o tempo de contato do rótulo (em geral, cerca de 15 minutos).'},
   enxague:   {t:'Enxaguar muito bem em água corrente', why:'O enxágue abundante retira o produto do alimento, conforme indicado no rótulo.'},
   remover:   {t:'Retirar as partes impróprias para o consumo', why:'Só depois de higienizar, retiram-se as partes que não serão consumidas (estragadas, talos, cascas quando for o caso).'},
-  proximo:   {t:'Passar para o próximo alimento', why:'Cada alimento é higienizado por completo antes de passar ao próximo.'},
   detergente:{t:'Lavar com detergente de louça',                why:'Detergente de louça não é produto próprio para alimentos e pode deixar resíduos.'},
   sem_lavar: {t:'Só descascar, sem lavar antes',                why:'Sem lavar antes, a sujeira e os microrganismos da casca passam para as mãos, a faca e a parte comestível.'}
 };
-const SEQUENCIA = ['agua','sanitizar','enxague','remover','proximo']; // mesma ordem para todos os alimentos
+const SEQUENCIA = ['agua','sanitizar','enxague','remover']; // mesma ordem para todos os alimentos
 
 const ALIMENTOS = {
   pepino: {nome:'Pepino', preco:4, cor:'#3b9a52', steps:SEQUENCIA,
-    acoes:['remover','agua','proximo','sanitizar','enxague','detergente'],
+    acoes:['remover','agua','sanitizar','enxague','detergente'],
     dica:'Costuma ser comido cru, às vezes com casca.', hints:{}},
   laranja: {nome:'Laranja', preco:3, cor:'#ee8a1f', steps:SEQUENCIA,
-    acoes:['remover','agua','proximo','sanitizar','enxague','sem_lavar'],
+    acoes:['remover','agua','sanitizar','enxague','sem_lavar'],
     dica:'A casca normalmente é descartada, mas as mãos e a faca encostam nela.', hints:{}},
   couve: {nome:'Couve', preco:5, cor:'#1f7a3d', steps:SEQUENCIA,
-    acoes:['remover','agua','proximo','sanitizar','enxague','detergente'],
+    acoes:['remover','agua','sanitizar','enxague','detergente'],
     dica:'Folhas sobrepostas retêm terra: ao lavar, abra bem as folhas.', hints:{}}
 };
 
@@ -109,8 +108,11 @@ function renderHigiene(){
   $('progress').firstElementChild.style.width = (f.i / a.steps.length * 100) + '%';
   $('progressTxt').textContent = f.done ? 'Higienização concluída' : `Etapa ${f.i+1} de ${a.steps.length}`;
   $('actions').innerHTML = a.acoes.map(k=>
-    `<button data-act="${k}" ${f.done?'disabled':''} class="${a.steps.indexOf(k) > -1 && a.steps.indexOf(k) < f.i ? 'used':''}">${k==='proximo' && S.comprados.filter(x=>!S.foods[x].done).length===1 ? 'Finalizar a higienização' : ACOES[k].t}</button>`).join('');
-  $('btnFinish').disabled = !S.comprados.every(k=>S.foods[k].done);
+    `<button data-act="${k}" ${f.done?'disabled':''} class="${a.steps.indexOf(k) > -1 && a.steps.indexOf(k) < f.i ? 'used':''}">${ACOES[k].t}</button>`).join('');
+  const faltam = S.comprados.filter(k=>!S.foods[k].done).length;
+  $('btnFinish').disabled = faltam > 0;
+  $('btnProximo').hidden = S.comprados.length < 2;      // só faz sentido com 2 ou mais alimentos
+  $('btnProximo').disabled = !f.done || faltam === 0;   // libera quando o alimento atual termina
   cabecalho();
 }
 function agir(k){
@@ -124,7 +126,7 @@ function agir(k){
     msg(fb, 'Correto! ' + ACOES[k].why, 'ok');
     const v = $('visual'); v.classList.remove('splash'); void v.offsetWidth;
     if(['agua','folha','enxague','sanitizar'].includes(k)) v.classList.add('splash');
-    if(f.i >= a.steps.length){ f.done = true; if(S.comprados.every(k=>k===id||S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900); S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos.`, 'ok'); const prox = S.comprados.find(x=>!S.foods[x].done); if(prox) S.sel = prox; }
+    if(f.i >= a.steps.length){ f.done = true; if(S.comprados.every(k=>k===id||S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900); S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos. Use o botão abaixo para seguir.`, 'ok'); }
   } else {
     f.erros++; f.falhouPasso = true;
     let m;
@@ -286,6 +288,10 @@ document.addEventListener('click', e=>{
 });
 $('btnConfirm').addEventListener('click', confirmarCompra);
 $('btnFinish').addEventListener('click', finalizar);
+$('btnProximo').addEventListener('click', ()=>{   // vai para o próximo alimento ainda não higienizado
+  const p = S.comprados.find(k=>!S.foods[k].done);
+  if(p){ S.sel = p; msg($('feedback'),''); renderHigiene(); }
+});
 $('btnPrint').addEventListener('click', ()=>window.print());
 $('btnRestart').addEventListener('click', iniciar);
 $('btnRefs').addEventListener('click', abrirRefs);

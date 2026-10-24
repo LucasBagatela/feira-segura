@@ -26,7 +26,8 @@ Todos os alimentos passam pela mesma sequência, nesta ordem:
 2. Deixar de molho em hipoclorito de sódio próprio para alimentos, seguindo a diluição e o tempo do rótulo.
 3. Enxaguar muito bem em água corrente.
 4. Retirar as partes impróprias para o consumo (só depois de higienizar).
-5. Passar para o próximo alimento (ou finalizar, no último).
+
+Quando um alimento termina, o botão **Próximo alimento** (acima de "Ver resultado") leva ao próximo ainda pendente. O botão **Ver resultado** só é liberado quando todos estiverem prontos.
 
 Ações como usar detergente de louça ou só descascar sem lavar são tratadas como erros, com explicação. Etapas certas na hora errada também recebem feedback.
 

@@ -106,3 +106,7 @@ dialog h3{margin-bottom:.25rem}
 .heroi .selo{transform-box:fill-box;transform-origin:center}
 .heroi .selo.pop{animation:selo .35s}
 @keyframes selo{40%{transform:scale(1.6)}}
+
+#btnProximo{margin-bottom:.6rem}
+.big.alt{background:var(--citrus)}
+.big.alt:hover:not(:disabled){background:#d4770f}
