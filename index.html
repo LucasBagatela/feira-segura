@@ -27,7 +27,7 @@
   <section id="s1">
     <p class="lead">Você tem um orçamento limitado (valores fictícios, só para o jogo). Escolha o que comprar: não dá para levar tudo. Toque nas barracas para o personagem andar até elas e comprar; depois vá ao caixa para pagar.</p>
     <div class="market">
-      <div><div id="palco1" class="palco"></div><p id="dica1" class="msg info" role="status"></p><p id="resumo1" class="small"></p></div>
+      <div><div id="palco1" class="palco"></div><p id="dica1" class="msg info" role="status"></p><p id="resumo1" class="small"></p><p class="small teclas">Computador: use as setas (ou W, A, S, D) para andar e E (ou Enter) para usar o objeto mais próximo. Celular: toque nos objetos.</p></div>
       <aside class="cart">
         <h2>Cesta</h2>
         <ul id="cartList"></ul>
@@ -41,9 +41,10 @@
 
   <!-- SESSÃO 2 -->
   <section id="s2" hidden>
-    <p class="lead">Escolha um alimento e execute as etapas na ordem que considerar correta. Erros não tiram pontos: a explicação ajuda a acertar.</p>
+    <p class="lead">Escolha um alimento e responda ao minigame de higienização. Erros não tiram pontos: tente outra opção até acertar.</p>
     <div id="palco2" class="palco"></div>
     <p id="dica2" class="msg info" role="status"></p>
+    <p class="small teclas">Computador: use as setas (ou W, A, S, D) para andar e E (ou Enter) para usar o objeto mais próximo. Celular: toque nos objetos.</p>
     <div id="washPanel" hidden>
     <div id="tabs" class="tabs"></div>
     <div class="wash">
@@ -55,8 +56,7 @@
       <div>
         <h2 id="foodTitle"></h2>
         <p id="foodHint" class="small"></p>
-        <div id="seq" class="seq"></div>
-        <div id="actions" class="actions"></div>
+        <div id="quiz" class="quiz"></div>
         <p id="feedback" class="msg" role="status"></p>
         <p class="note">Lembrete: lavar ajuda na higiene e pode reduzir parte dos resíduos superficiais, mas não garante a remoção de agrotóxicos, principalmente resíduos presentes no interior do alimento.</p>
       </div>

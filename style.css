@@ -121,3 +121,20 @@ dialog h3{margin-bottom:.25rem}
 .actions button.errou{background:#fdecea;border-color:var(--bad);color:var(--bad)}
 .actions button.errou::before{content:"✖ "}
 .actions button.dica{outline:3px dashed var(--citrus);outline-offset:2px}
+
+/* Minigame de perguntas */
+.quiz h3{margin:.3rem 0 .6rem}
+.opcoes{display:grid;gap:.5rem;margin-bottom:.75rem}
+.opcoes button{text-align:left;background:#fff;border:1px solid var(--line)}
+.opcoes button.errou{background:#fdecea;border-color:var(--bad);color:var(--bad)}
+.opcoes button.errou::before{content:"✖ "}
+.opcoes button.certa{background:var(--leaf2);border-color:var(--leaf);opacity:1}
+
+/* Teclado e animações do personagem */
+.heroi.livre{transition:none}
+.heroi:not(.andando):not(.chegou) svg{animation:respira 2.4s ease-in-out infinite}
+@keyframes respira{50%{transform:translateY(-2px)}}
+.spot.perto>svg{filter:brightness(1.08) drop-shadow(0 0 8px var(--citrus))}
+.prompt{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:5;background:var(--ink);color:#fff;font-size:.85rem;padding:.4rem .9rem;border-radius:99px;max-width:94%}
+.prompt:hover:not(:disabled){transform:translateX(-50%);background:var(--ink)}
+.teclas{color:#4a615b;margin:.25rem 0}

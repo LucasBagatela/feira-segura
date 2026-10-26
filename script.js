@@ -2,42 +2,23 @@
 /* ===== DADOS DO JOGO (fácil de modificar) ===== */
 const ORCAMENTO = 20;      // R$ fictício, valor didático
 const LIMITE_UNID = 3;     // máximo de unidades de cada alimento
+const PERGUNTAS_POR_ALIMENTO = 3; // quantas perguntas sorteadas (de 6) cada alimento recebe
 const fmt = v => 'R$ ' + v.toFixed(2).replace('.', ',');
 
-// Ações de higienização. "why" explica o que a ação faz quando é a correta.
-const ACOES = {
-  agua:      {t:'Abrir a torneira e dar uma passada na água, esfregando de leve', why:'A água corrente com fricção leve solta a sujeira da superfície antes do molho.'},
-  sanitizar: {t:'Deixar de molho em hipoclorito de sódio próprio para alimentos (diluição e tempo do rótulo)', why:'Todo alimento consumido cru passa pelo produto próprio para alimentos, que ajuda a eliminar microrganismos. Siga a diluição e o tempo de contato do rótulo (em geral, cerca de 15 minutos).'},
-  enxague:   {t:'Enxaguar muito bem em água corrente', why:'O enxágue abundante retira o produto do alimento, conforme indicado no rótulo.'},
-  remover:   {t:'Retirar as partes impróprias para o consumo', why:'Só depois de higienizar, retiram-se as partes que não serão consumidas (estragadas, talos, cascas quando for o caso).'},
-  detergente:{t:'Lavar com detergente de louça',                why:'Detergente de louça não é produto próprio para alimentos e pode deixar resíduos.'},
-  sem_lavar: {t:'Só descascar, sem lavar antes',                why:'Sem lavar antes, a sujeira e os microrganismos da casca passam para as mãos, a faca e a parte comestível.'}
-};
-// Por que cada etapa NÃO vem antes da hora (mostrado quando o jogador clica na ação errada)
-const QUANDO = {
-  agua:      'A passada na água, esfregando de leve, é o ponto de partida: ela solta a terra e a sujeira da superfície antes de qualquer produto.',
-  sanitizar: 'O molho com o produto vem depois da passada na água: ele age melhor com a superfície já sem terra, e antes do enxágue que o retira.',
-  enxague:   'O enxágue só faz sentido depois do molho, pois serve para tirar o produto do alimento.',
-  remover:   'Retirar as partes impróprias fica para o final, depois de todas as etapas de higienização.'
-};
 // Embaralha uma lista (Fisher-Yates): a ordem dos botões muda a cada partida
 function embaralhar(lista){
   const l = lista.slice();
   for(let i=l.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [l[i],l[j]] = [l[j],l[i]]; }
   return l;
 }
-const SEQUENCIA = ['agua','sanitizar','enxague','remover']; // mesma ordem para todos os alimentos
 
 const ALIMENTOS = {
-  pepino: {nome:'Pepino', preco:4, cor:'#3b9a52', steps:SEQUENCIA,
-    acoes:['remover','agua','sanitizar','enxague','detergente'],
-    dica:'Costuma ser comido cru, às vezes com casca.', hints:{}},
-  laranja: {nome:'Laranja', preco:3, cor:'#ee8a1f', steps:SEQUENCIA,
-    acoes:['remover','agua','sanitizar','enxague','sem_lavar'],
-    dica:'A casca normalmente é descartada, mas as mãos e a faca encostam nela.', hints:{}},
-  couve: {nome:'Couve', preco:5, cor:'#1f7a3d', steps:SEQUENCIA,
-    acoes:['remover','agua','sanitizar','enxague','detergente'],
-    dica:'Folhas sobrepostas retêm terra: ao lavar, abra bem as folhas.', hints:{}}
+  pepino: {nome:'Pepino', preco:4, cor:'#3b9a52',
+    dica:'Costuma ser comido cru, às vezes com casca.'},
+  laranja: {nome:'Laranja', preco:3, cor:'#ee8a1f',
+    dica:'A casca normalmente é descartada, mas as mãos e a faca encostam nela.'},
+  couve: {nome:'Couve', preco:5, cor:'#1f7a3d',
+    dica:'Folhas sobrepostas retêm terra: ao lavar, abra bem as folhas.'}
 };
 
 /* ===== ESTADO ===== */
@@ -103,7 +84,7 @@ function confirmarCompra(){
   if(total() === 0) return msg($('msg1'), 'Compre pelo menos um alimento para avançar.', 'err');
   S.gasto = total();
   S.comprados = Object.keys(S.cesta).filter(k=>S.cesta[k]>0);
-  S.comprados.forEach(id=>{ S.foods[id] = {i:0, erros:0, acertos:0, corrigidos:0, falhouPasso:false, done:false, ordem:embaralhar(ALIMENTOS[id].acoes), errados:[]}; });
+  S.comprados.forEach(id=>{ S.foods[id] = {done:false, perguntas:embaralhar(MINIGAMES[id]).slice(0, PERGUNTAS_POR_ALIMENTO), quiz:{q:0, acertos:0, erros:0, errados:[], ordem:null, certa:false}}; });
   S.pontos += 10; // planejou dentro do orçamento (o sistema impede ultrapassar)
   S.sel = S.comprados[0];
   irParaCasa();
@@ -115,52 +96,19 @@ function renderHigiene(){
     `<button class="tab ${S.sel===id?'sel':''} ${S.foods[id].done?'done':''}" data-food="${id}">${ALIMENTOS[id].nome} ${S.foods[id].done?'✔':''}</button>`).join('');
   const id = S.sel, a = ALIMENTOS[id], f = S.foods[id];
   $('visual').innerHTML = arte(id) + '<div class="dirt"></div>';
-  $('visual').style.setProperty('--dirt', 1 - f.i / a.steps.length);
+  const total = f.perguntas.length, prog = f.done ? 1 : f.quiz.q / total;   // progresso = perguntas respondidas
+  $('visual').style.setProperty('--dirt', 1 - prog);
   $('foodTitle').textContent = a.nome;
   $('foodHint').textContent = a.dica;
-  $('progress').firstElementChild.style.width = (f.i / a.steps.length * 100) + '%';
-  $('progressTxt').textContent = f.done ? 'Higienização concluída' : `Etapa ${f.i+1} de ${a.steps.length}`;
-  const classe = k=>{
-    const pos = a.steps.indexOf(k);
-    if(pos > -1 && pos < f.i) return 'used';                 // etapa já feita
-    if(f.errados.includes(k)) return 'errou';                // clicou e não era a hora
-    if(f.errados.length >= 3 && k === a.steps[f.i]) return 'dica'; // após 3 erros, destaca a certa
-    return '';
-  };
-  $('actions').innerHTML = f.ordem.map(k=>
-    `<button data-act="${k}" class="${classe(k)}" ${f.done || classe(k)==='used' ? 'disabled' : ''}>${ACOES[k].t}</button>`).join('');
-  // Indicador da sequência: o jogador precisa clicar nas ações uma de cada vez, na ordem correta
-  $('seq').innerHTML = `<p><b>Clique nas ações na sequência correta</b>, uma de cada vez. ${f.done ? 'Sequência completa!' : `Agora: etapa ${f.i+1} de ${a.steps.length}.`}</p><div class="chips">` +
-    a.steps.map((s,i)=>`<span class="chip2 ${i<f.i?'ok':i===f.i&&!f.done?'now':''}">${i<f.i?'✔':i+1}</span>`).join('') + '</div>';
+  $('progress').firstElementChild.style.width = (prog*100) + '%';
+  $('progressTxt').textContent = f.done ? 'Higienização concluída' : `Pergunta ${f.quiz.q+1} de ${total}`;
+  if(f.done) $('quiz').innerHTML = '<p class="msg ok">✔ Minigame concluído! Use "Próximo alimento" ou "Ver resultado".</p>';
+  else renderQuiz();
   const faltam = S.comprados.filter(k=>!S.foods[k].done).length;
   $('btnFinish').disabled = faltam > 0;
   $('btnProximo').hidden = S.comprados.length < 2;      // só faz sentido com 2 ou mais alimentos
   $('btnProximo').disabled = !f.done || faltam === 0;   // libera quando o alimento atual termina
   cabecalho();
-}
-function agir(k){
-  const id = S.sel, a = ALIMENTOS[id], f = S.foods[id], fb = $('feedback');
-  if(f.done) return;
-  const esperado = a.steps[f.i];
-  if(k === esperado){
-    f.acertos++;
-    if(f.falhouPasso){ S.pontos += 5; f.corrigidos++; f.falhouPasso = false; } else S.pontos += 10;
-    f.i++; f.errados = [];
-    msg(fb, 'Correto! ' + ACOES[k].why, 'ok');
-    const v = $('visual'); v.classList.remove('splash'); void v.offsetWidth;
-    if(['agua','folha','enxague','sanitizar'].includes(k)) v.classList.add('splash');
-    if(f.i >= a.steps.length){ f.done = true; if(S.comprados.every(k=>k===id||S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900); S.pontos += 15; msg(fb, `Correto! ${ACOES[k].why} ${a.nome} concluído. Lembre-se: a lavagem não garante ausência de resíduos. Use o botão abaixo para seguir.`, 'ok'); }
-  } else {
-    f.erros++; f.falhouPasso = true;
-    if(!f.errados.includes(k)) f.errados.push(k);
-    const nome = ACOES[k].t;
-    let motivo;
-    if(a.steps.includes(k)) motivo = QUANDO[k];                          // etapa certa, mas fora de ordem
-    else motivo = ACOES[k].why;                                           // ação que não deve ser usada
-    const abertura = f.i === 0 ? 'não é por aqui que se começa' : 'ainda não é a hora desta etapa';
-    msg(fb, `✖ “${nome}”: ${abertura}. Clique em outra ação. Por quê? ${motivo}`, 'err');
-  }
-  renderHigiene();
 }
 
 /* ===== SESSÃO 3: RESULTADO ===== */
@@ -206,14 +154,16 @@ function atualizarCesta(){
 function montarPalco(elId, tipo, spots, start, sacola){
   const p = $(elId); p.className = 'palco ' + tipo;
   p.innerHTML = spots.map(s=>`<button class="spot ${s.cls||''}" data-spot="${s.id}" ${s.label?`aria-label="${s.label}"`:''} style="left:${s.x}%;top:${s.y}%">${s.html}</button>`).join('') +
-    `<div class="heroi ${sacola?'comsacola':''}" style="left:${start[0]}%;top:${start[1]}%">${HEROI}</div>`;
+    `<div class="heroi ${sacola?'comsacola':''}" style="left:${start[0]}%;top:${start[1]}%">${HEROI}</div><button class="prompt" hidden></button>`;
   p.querySelectorAll('.spot').forEach((b,i)=>b.addEventListener('click', ()=>ir(p, spots[i])));
+  p._spots = spots; p.setAttribute('role','group'); p.setAttribute('aria-label','Cena do jogo');
+  p.querySelector('.prompt').addEventListener('click', ()=>usarPerto(p));
   ultimoN = 99; atualizarCesta(); // redesenha a cesta sem animar
 }
 // Faz o personagem andar até o objeto e só então executa a ação
 function ir(p, s){
   if(andando) return; andando = true;
-  const h = p.querySelector('.heroi');
+  const h = p.querySelector('.heroi'); h.classList.remove('livre');
   const alvoX = s.x/100*p.clientWidth, alvoY = Math.min(s.y+22,96)/100*p.clientHeight;
   const dist = Math.hypot(alvoX-h.offsetLeft, alvoY-h.offsetTop);
   const dur = Math.max(0.5, dist/260);               // duração proporcional à distância (s)
@@ -224,7 +174,7 @@ function ir(p, s){
   setTimeout(()=>{                                   // chegou: para de andar e só então age
     h.classList.remove('andando'); h.classList.add('chegou');
     setTimeout(()=>h.classList.remove('chegou'), 350);
-    andando = false; s.fn();
+    andando = false; s.fn(); atualizarPerto(p);
   }, dur*1000 + 60);
 }
 /* ===== ILUSTRAÇÕES DAS CENAS (SVG próprio) ===== */
@@ -294,7 +244,7 @@ function finalizar(){
 function renderResultado(){
   const d = new Date().toLocaleString('pt-BR');
   const li = S.comprados.map(k=>{ const a=ALIMENTOS[k], q=S.cesta[k]; return `<div class="l"><span>${q}x ${a.nome} @ ${fmt(a.preco)}</span><span>${fmt(q*a.preco)}</span></div>`; }).join('');
-  const hig = S.comprados.map(k=>{ const f=S.foods[k]; return `<div class="l"><span>${ALIMENTOS[k].nome}: ${ALIMENTOS[k].steps.length} etapas</span><span>${f.erros} erro(s), ${f.corrigidos} corrigido(s)</span></div>`; }).join('');
+  const hig = S.comprados.map(k=>{ const f=S.foods[k]; return `<div class="l"><span>Minigame ${ALIMENTOS[k].nome}</span><span>${f.quiz.acertos}/${f.perguntas.length} de primeira, ${f.quiz.erros} erro(s)</span></div>`; }).join('');
   $('nota').innerHTML = `<h3>MERCADO DIDÁTICO</h3><p class="c">Nota da jornada — ${d}<br>(preços fictícios)</p><hr>${li}<hr>
     <div class="l"><b>TOTAL</b><b>${fmt(S.gasto)}</b></div><div class="l"><span>Orçamento</span><span>${fmt(ORCAMENTO)}</span></div><div class="l"><span>Saldo</span><span>${fmt(ORCAMENTO-S.gasto)}</span></div><hr>
     <p class="c">HIGIENIZAÇÃO EM CASA</p>${hig}<hr>
@@ -303,13 +253,149 @@ function renderResultado(){
   mostrar(3); cabecalho();
 }
 
+/* ===== MINIGAMES (perguntas por alimento) =====
+   Formato: q(tema, pergunta, feedback, [resposta correta, ...erradas]). A correta é SEMPRE a primeira da lista
+   (as opções são embaralhadas na tela). */
+const q = (t,p,ok,op)=>({t,p,ok,op});
+const MINIGAMES = {
+  couve: [
+    q('Seleção','O jogador vê folhas boas e folhas amareladas. Qual é a primeira ação antes de lavar?','Ótimo! Eliminar as partes estragadas evita contaminar o restante.',['Selecionar e descartar as folhas murchas ou danificadas.','Picar todas as folhas juntas, sem separar.','Colocar tudo direto na solução clorada.','Guardar as folhas amareladas para misturar depois.']),
+    q('Pré-lavagem','Como o jogador deve fazer a limpeza inicial da couve?','Exato! A água corrente remove poeira e pequenos insetos visíveis.',['Lavar folha por folha rigorosamente em água corrente.','Passar rapidamente o maço inteiro sob a torneira.','Deixar o maço parado em uma bacia com água parada.','Esfregar as folhas com detergente de louça.']),
+    q('Desinfecção: dosagem','Para preparar a solução clorada de desinfecção, qual é a medida correta para 1 litro de água?','Perfeito! Essa é a proporção recomendada pela ANVISA.',['1 colher de sopa de água sanitária própria para alimentos.','1 xícara de água sanitária própria para alimentos.','1 colher de chá de qualquer água sanitária.','1 garrafa inteira de água sanitária.']),
+    q('Desinfecção: tempo','Quanto tempo as folhas de couve devem ficar submersas na solução clorada?','Correto! Esse tempo elimina os germes sem estragar as folhas.',['De 10 a 15 minutos.','Apenas 10 segundos.','Cerca de 1 hora.','A noite toda.']),
+    q('Enxágue','O que o jogador deve fazer imediatamente após retirar a couve do molho clorado?','Muito bem! O enxágue garante que nenhum produto químico fique no alimento.',['Enxaguar bem em água corrente para remover os resíduos do cloro.','Guardar direto na geladeira, ainda com o cloro.','Temperar as folhas com sal e limão.','Deixar secar ao ar sem enxaguar.']),
+    q('Secagem','Qual é o último passo antes de picar ou guardar a couve?','Minigame concluído! Couve limpa, seca e pronta para o consumo!',['Secar as folhas (usando escorredor limpo ou centrífuga de saladas).','Guardar as folhas molhadas em um saco fechado.','Deixar as folhas na pia por várias horas.','Lavar tudo de novo com detergente.'])
+  ],
+  laranja: [
+    q('Importância','Por que o jogador precisa lavar a casca da laranja se ela não vai ser comida?','Exato! Isso previne a contaminação cruzada.',['Para evitar que a faca leve sujeira e bactérias da casca para a polpa ao cortar.','Porque a casca é a parte mais saborosa.','Porque a água deixa a polpa mais doce.','Não precisa lavar, pois a casca é descartada.']),
+    q('Ação mecânica','Como o jogador deve limpar a casca da laranja?','Ótimo! A fricção remove a terra e resíduos superficiais.',['Esfregando bem com as mãos ou escovinha em água corrente.','Apenas molhando por 1 segundo.','Descascando primeiro e lavando depois a polpa.','Passando um pano seco.']),
+    q('Produto opcional','Se o jogador decidir usar um produto auxiliar na casca, qual é o correto?','Perfeito! Nunca use produtos perfumados ou químicos agressivos.',['Detergente neutro (com enxágue abundante depois).','Detergente perfumado, sem enxaguar.','Álcool ou desinfetante de uso geral.','Produto de limpeza de banheiro.']),
+    q('Erro comum','O que o jogador deve fazer se encontrar uma laranja com mofo na casca?','Correto! O mofo penetra na polpa, mesmo que não dê para ver.',['Descartar a fruta inteira, pois as toxinas se espalham por dentro.','Cortar só a parte com mofo e comer o resto.','Lavar bem e usar normalmente.','Fazer suco para disfarçar.']),
+    q('Secagem','O que deve ser feito com a laranja após a lavagem e antes de guardá-la?','Muito bem! A umidade parada acelera o apodrecimento.',['Secar completamente com papel-toalha.','Guardar ainda molhada.','Deixar de molho até o dia seguinte.','Embrulhar molhada em saco plástico.']),
+    q('Conclusão','Qual o status final da laranja no minigame?','Minigame concluído com sucesso!',['Casca higienizada, seca e pronta para corte seguro.','Casca úmida e pronta para guardar.','Casca suja, mas descascada.','Fruta lavada apenas com água parada.'])
+  ],
+  pepino: [
+    q('Ordem das etapas','Qual é a primeira coisa que o jogador deve fazer com o pepino?','Exato! Nunca fatie o pepino antes de higienizá-lo.',['Fazer a pré-lavagem com o pepino inteiro em água corrente.','Fatiar o pepino para lavar melhor.','Colocar já em fatias na solução clorada.','Descascar antes de lavar.']),
+    q('Limpeza das ranhuras','Como o jogador remove a terra presa nas ranhuras da casca do pepino?','Ótimo! Isso limpa as dobrinhas da casca sem danificá-la.',['Usando uma escovinha macia em movimentos verticais sob a torneira.','Raspando com uma faca afiada.','Usando esponja de aço.','Lavando só por cima, deixando a terra.']),
+    q('Desinfecção: lógica','Por que o pepino deve entrar inteiro na solução clorada?','Perfeito! Cortar antes levaria germes para dentro do alimento.',['Para que a água sanitária não entre em contato com a polpa interna.','Para o pepino ficar mais crocante.','Para a solução render mais.','Porque fatiado ele boia na bacia.']),
+    q('Desinfecção: cálculo','Se a bacia tem 2 litros de água, quanta água sanitária o jogador deve colocar?','Excelente! Cálculo de proporção correto.',['2 colheres de sopa (1 colher por litro).','1 colher de sopa.','1 xícara.','4 colheres de sopa.']),
+    q('Enxágue e espera','Após os 10 a 15 minutos de molho, qual é a obrigação do jogador?','Muito bem! Isso evita qualquer resíduo químico no pepino.',['Enxaguar abundantemente em água potável para tirar o cloro.','Cortar e servir direto, sem enxaguar.','Deixar secar com o cloro na casca.','Mergulhar de novo na solução.']),
+    q('Armazenamento final','Como o pepino deve ser guardado na geladeira após seco?','Minigame concluído! Pepino crocante, seguro e pronto para a salada!',['Seco e armazenado na gaveta de legumes em recipiente fechado.','Molhado, solto na prateleira.','Dentro de um saco com água parada.','Ao lado da carne crua, sem proteção.'])
+  ]
+};
+function renderQuiz(){
+  const id = S.sel, f = S.foods[id], qs = f.perguntas, p = qs[f.quiz.q];
+  if(!f.quiz.ordem) f.quiz.ordem = embaralhar(p.op.map((_,i)=>i)); // posição da resposta certa muda a cada pergunta
+  $('quiz').innerHTML = `<p class="small"><b>Minigame ${ALIMENTOS[id].nome}</b> · pergunta ${f.quiz.q+1} de ${qs.length} · ${p.t}</p><h3>${p.p}</h3>
+    <div class="opcoes">${f.quiz.ordem.map(i=>`<button data-opt="${i}" class="${f.quiz.errados.includes(i)?'errou':''} ${f.quiz.certa&&i===0?'certa':''}" ${f.quiz.certa?'disabled':''}>${p.op[i]}</button>`).join('')}</div>`
+    + (f.quiz.certa ? `<button class="big alt" data-qnext>${f.quiz.q+1<qs.length ? 'Próxima pergunta' : 'Concluir minigame'}</button>` : '');
+}
+// Os feedbacks das últimas perguntas do material dizem "Minigame concluído!"; como as perguntas são sorteadas,
+// essa frase só aparece de fato na última pergunta da rodada
+function feedbackDa(p, ultima){
+  if(ultima || !/^Minigame concluído/.test(p.ok)) return p.ok;
+  const resto = p.ok.replace(/^Minigame concluído( com sucesso)?!\s*/, '');
+  return 'Correto!' + (resto ? ' ' + resto : '');
+}
+function responder(i){
+  const id = S.sel, f = S.foods[id], p = f.perguntas[f.quiz.q];
+  if(f.quiz.certa) return;
+  if(i === 0){                                    // a resposta certa é sempre o índice 0 da lista original
+    f.quiz.certa = true;
+    if(f.quiz.errados.length === 0){ f.quiz.acertos++; S.pontos += 10; } else S.pontos += 5; // corrigir após o erro também pontua
+    msg($('feedback'), '✔ ' + feedbackDa(p, f.quiz.q === f.perguntas.length - 1), 'ok');
+  } else {
+    if(!f.quiz.errados.includes(i)) f.quiz.errados.push(i);
+    f.quiz.erros++;
+    msg($('feedback'), '✖ Ainda não. Releia a pergunta e tente outra opção.', 'err');
+  }
+  renderHigiene();
+}
+function proximaPergunta(){
+  const id = S.sel, f = S.foods[id];
+  f.quiz.q++; f.quiz.certa = false; f.quiz.errados = []; f.quiz.ordem = null;
+  if(f.quiz.q >= f.perguntas.length) concluirAlimento(id);
+  else { msg($('feedback'),''); renderHigiene(); }
+}
+function concluirAlimento(id){
+  const f = S.foods[id];
+  f.done = true; S.pontos += 15;
+  if(S.comprados.every(k=>S.foods[k].done)) setTimeout(()=>{ msg($('dica2'),'Tudo higienizado! Toque na Mesa para finalizar.','ok'); rolarPara($('palco2')); }, 900);
+  msg($('feedback'), `${ALIMENTOS[id].nome} concluído! Lembre-se: a lavagem não garante ausência de resíduos. Use o botão abaixo para seguir.`, 'ok');
+  renderHigiene();
+}
+
+/* ===== MOVIMENTO PELO TECLADO (computador) =====
+   Setas ou W/A/S/D andam; E ou Enter usam o objeto mais próximo. O toque/clique continua funcionando. */
+const teclas = new Set();
+let rafId = null, tAnt = 0;
+const MAPA = {ArrowLeft:'e',a:'e',A:'e', ArrowRight:'d',d:'d',D:'d', ArrowUp:'c',w:'c',W:'c', ArrowDown:'b',s:'b',S:'b'};
+// Cena que o teclado controla agora (só se estiver visível na tela e sem janelas abertas)
+function palcoAtivo(){
+  if(!$('transicao').hidden || $('refs').open) return null;
+  const el = !$('s1').hidden ? $('palco1') : !$('s2').hidden ? $('palco2') : null;
+  if(!el) return null;
+  const r = el.getBoundingClientRect();
+  return (r.bottom > 80 && r.top < window.innerHeight - 80) ? el : null;
+}
+function pararAndar(h){ if(h) h.classList.remove('andando'); rafId = null; }
+function passo(t){
+  const p = palcoAtivo(), h = p && p.querySelector('.heroi');
+  if(!h || !teclas.size || andando){ pararAndar(h); if(p) atualizarPerto(p); return; }
+  const dt = Math.min((t - tAnt)/1000, 0.05); tAnt = t;
+  const dx = (teclas.has('d')?1:0) - (teclas.has('e')?1:0), dy = (teclas.has('b')?1:0) - (teclas.has('c')?1:0);
+  if(dx || dy){
+    const n = Math.hypot(dx,dy), v = 190*dt;                 // velocidade: 190 px/s
+    const x = Math.max(.04*p.clientWidth, Math.min(.96*p.clientWidth, h.offsetLeft + dx/n*v));
+    const y = Math.max(.42*p.clientHeight, Math.min(.96*p.clientHeight, h.offsetTop + dy/n*v));
+    h.classList.add('livre','andando');                       // "livre" desliga a transição do clique
+    if(dx) h.classList.toggle('esq', dx < 0);
+    h.style.left = (x/p.clientWidth*100) + '%'; h.style.top = (y/p.clientHeight*100) + '%';
+    atualizarPerto(p);
+  }
+  rafId = requestAnimationFrame(passo);
+}
+// Descobre o objeto mais próximo do personagem e mostra o aviso "Pressione E"
+function atualizarPerto(p){
+  const h = p.querySelector('.heroi'), pr = p.querySelector('.prompt'); if(!h || !pr) return;
+  let melhor = null, menor = 70;                              // alcance: 70 px
+  (p._spots||[]).forEach(s=>{
+    const d = Math.hypot(h.offsetLeft - s.x/100*p.clientWidth, h.offsetTop - Math.min(s.y+22,96)/100*p.clientHeight);
+    if(d < menor){ menor = d; melhor = s; }
+  });
+  p._perto = melhor;
+  p.querySelectorAll('.spot').forEach(b=>b.classList.toggle('perto', !!melhor && b.dataset.spot === melhor.id));
+  pr.hidden = !melhor;
+  if(melhor) pr.textContent = `Pressione E ou toque aqui: ${melhor.label}`;
+}
+function usarPerto(p){
+  const s = p._perto; if(!s || andando) return false;
+  const h = p.querySelector('.heroi'); h.classList.add('chegou'); setTimeout(()=>h.classList.remove('chegou'), 350);
+  s.fn(); return true;
+}
+document.addEventListener('keydown', e=>{
+  if(e.ctrlKey || e.metaKey || e.altKey) return;
+  if(e.target.closest && e.target.closest('input,select,textarea')) return;
+  const dir = MAPA[e.key], p = palcoAtivo();
+  if(dir && p){
+    e.preventDefault(); teclas.add(dir);
+    if(!rafId && !andando){ tAnt = performance.now(); rafId = requestAnimationFrame(passo); }
+    return;
+  }
+  const usar = e.key === 'e' || e.key === 'E' || ((e.key === 'Enter' || e.key === ' ') && !(e.target.closest && e.target.closest('button,a')));
+  if(usar && p && usarPerto(p)) e.preventDefault();
+});
+document.addEventListener('keyup', e=>{ if(MAPA[e.key]) teclas.delete(MAPA[e.key]); });
+window.addEventListener('blur', ()=>teclas.clear());
+
 /* ===== EVENTOS ===== */
 document.addEventListener('click', e=>{
   const b = e.target.closest('button'); if(!b) return;
   if(b.dataset.add) adicionar(b.dataset.add);
   else if(b.dataset.rem) remover(b.dataset.rem);
   else if(b.dataset.food){ S.sel = b.dataset.food; msg($('feedback'),''); renderHigiene(); }
-  else if(b.dataset.act) agir(b.dataset.act);
+  else if(b.dataset.opt !== undefined) responder(+b.dataset.opt);
+  else if(b.dataset.qnext !== undefined) proximaPergunta();
 });
 $('btnConfirm').addEventListener('click', confirmarCompra);
 $('btnFinish').addEventListener('click', finalizar);
